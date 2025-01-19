@@ -14,7 +14,7 @@
         LinkedIn
         Email:
     
-**<center>This project is licensed under the MIT License<center>**
+**<center> This project is licensed under the MIT License <center>**
 
 <p align="center">
     <img src="data/cover.png" alt="Cover">
