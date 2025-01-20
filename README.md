@@ -9,10 +9,10 @@
 
         LinkedIn:
         Email:
-    [Jorge]
-
-        LinkedIn
-        Email:
+    [Jorge Duro Sánchez]
+        Data Analyst | Bioinformático | Biólogo Computacional
+        LinkedIn: https://www.linkedin.com/in/jorge-duro-s%C3%A1nchez-694686230/
+        Email: jorge.durosanchez@gmail.com
     
 **<center> This project is licensed under the MIT License <center>**
 
