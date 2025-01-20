@@ -2,13 +2,13 @@
 ----------------
 
     [Jose Luis Vázquez Vicario]
-        Analista de datos | Biólogo
+        Data Analyst | Biólogo
         LinkedIn: www.linkedin.com/in/jlvv
         Email: eljl2v@gmail.com
-    [Bencomo]
-
-        LinkedIn:
-        Email:
+    [Bencomo Hernández Morales]
+        Data Analyst | Técnico Contable
+        LinkedIn: https://www.linkedin.com/in/bencomo-hernandez-morales
+        Email: bencomo.hdez@gmail.com
     [Jorge Duro Sánchez]
         Data Analyst | Bioinformático | Biólogo Computacional
         LinkedIn: https://www.linkedin.com/in/jorge-duro-s%C3%A1nchez-694686230/
