@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import plotly.express as px
 import pickle
+import plotly.graph_objects as go
 import warnings
 
 warnings.filterwarnings('ignore')
@@ -185,13 +186,78 @@ elif menu == "📊 Análisis Visual":
     st.markdown("## Análisis Visual de los Datos")
     st.write("Explora las relaciones entre ingresos, gastos y otras variables clave.")
 
+
     # Opciones de visualización
+    st.sidebar.subheader("Opciones de Visualización")
+    y_axis = st.sidebar.selectbox("Variable de agrupación (Eje Y):", ["Age", "Occupation", "City_Tier"])
+
+# Agrupar los datos para calcular los ingresos promedio según la variable seleccionada
+    income_by_group = df.groupby(y_axis)['Income'].mean().reset_index()
+
+# Calcular el ingreso promedio general
+    overall_mean_income = df['Income'].mean()
+
+    if y_axis == "Age":
+        # Crear la gráfica de líneas para 'Age'
+        fig = go.Figure()
+
+        # Agregar línea de ingresos promedio por edad
+        fig.add_trace(go.Scatter(
+            x=income_by_group[y_axis],
+            y=income_by_group['Income'],
+            mode='lines+markers',
+            name='Ingreso promedio por edad',
+            line=dict(color='blue'),
+            marker=dict(size=8)
+        ))
+
+        # Agregar línea horizontal para el ingreso promedio general
+        fig.add_trace(go.Scatter(
+            x=income_by_group[y_axis],
+            y=[overall_mean_income] * len(income_by_group),
+            mode='lines',
+            name='Ingreso promedio general',
+            line=dict(color='white', dash='dash')
+        ))
+
+        # Personalizar el diseño del gráfico
+    
+        fig.update_layout(
+            font=dict(size=12),
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+        )
+
+    else:
+        # Crear gráfica de barras para 'Occupation' o 'City_Tier'
+        fig = px.bar(
+            data_frame=income_by_group,
+            x=y_axis,
+            y='Income',
+            text='Income',
+            title=f'Promedio de Ingresos por {y_axis}',
+            color=y_axis,
+            template='plotly_white'
+        )
+
+# Personalizar el diseño del gráfico
+    fig.update_layout(
+            font=dict(size=12),
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+    )
+
+# Mostrar el gráfico en Streamlit
+    st.plotly_chart(fig)
+
+
+# Opciones de visualización
     st.sidebar.subheader("Opciones de Visualización")
     x_axis = st.sidebar.selectbox("Eje X:", df.columns)
     y_axis = st.sidebar.selectbox("Eje Y:", df.columns)
     chart_type = st.sidebar.radio("Tipo de gráfico:", ["Scatterplot", "Boxplot", "Histogram"])
 
-    # Crear gráficos con Plotly
+        # Crear gráficos con Plotly
     if chart_type == "Scatterplot":
         st.write(f"### Gráfico de dispersión: {x_axis} vs {y_axis}")
         fig = px.scatter(
@@ -249,6 +315,15 @@ elif menu == "📈 Dashboard Power BI":
     Este dashboard interactivo explora los patrones financieros en India, integrando visualizaciones dinámicas de Power BI.
     Puedes interactuar directamente con los gráficos para explorar tendencias e insights clave.
     """)
+
+
+        # Inserción del informe de Power BI
+    st.components.v1.iframe(
+        src="https://app.powerbi.com/view?r=eyJrIjoiNDY4ZTI4OTYtMjc1YS00YjlhLWEwZDItYjk3MWFmZjY5MzhkIiwidCI6IjhhZWJkZGI2LTM0MTgtNDNhMS1hMjU1LWI5NjQxODZlY2M2NCIsImMiOjl9",
+        width=800,  # Ajusta el ancho según tus necesidades
+        height=450,  # Ajusta la altura según tus necesidades
+        scrolling=True
+    )
 
 # ---- Predicción Financiera ----
 elif menu == "🤖 Predicción Financiera":
