@@ -83,6 +83,8 @@ st.markdown(
 
 #FUNCION PARA CARGAR EL dfSET
 df= pd.read_csv('datos_limpios.csv')
+data=pd.read_csv('data/data.csv')
+datos=pd.read_csv('datos_modelo.csv') 
 
 st.sidebar.image('data/cover.png')
 st.sidebar.title("Navegación")
@@ -183,131 +185,213 @@ if menu == "🏠 Introducción":
 
 # ---- Análisis Visual ----
 elif menu == "📊 Análisis Visual":
-    st.markdown("## Análisis Visual de los Datos")
+    st.title("Análisis Visual de los Datos")
     st.write("Explora las relaciones entre ingresos, gastos y otras variables clave.")
 
+# ----------------------- Promedio de Ingresos por Edad -----------------------
+    income_by_age = data.groupby('Age')['Income'].mean()
+    overall_mean_income = data['Income'].mean()
 
-    # Opciones de visualización
-    st.sidebar.subheader("Opciones de Visualización")
-    y_axis = st.sidebar.selectbox("Variable de agrupación (Eje Y):", ["Age", "Occupation", "City_Tier"])
+    fig1 = go.Figure()
 
-# Agrupar los datos para calcular los ingresos promedio según la variable seleccionada
-    income_by_group = df.groupby(y_axis)['Income'].mean().reset_index()
+    fig1.add_trace(go.Scatter(
+        x=income_by_age.index,
+        y=income_by_age.values,
+        mode='lines+markers',
+        name='Ingreso promedio por edad',
+        line=dict(color='blue'),
+        marker=dict(size=8)
+    ))
 
-# Calcular el ingreso promedio general
-    overall_mean_income = df['Income'].mean()
+    fig1.add_trace(go.Scatter(
+        x=income_by_age.index,
+        y=[overall_mean_income] * len(income_by_age),
+        mode='lines',
+        name='Ingreso promedio general',
+        line=dict(color='red', dash='dash')
+    ))
 
-    if y_axis == "Age":
-        # Crear la gráfica de líneas para 'Age'
-        fig = go.Figure()
-
-        # Agregar línea de ingresos promedio por edad
-        fig.add_trace(go.Scatter(
-            x=income_by_group[y_axis],
-            y=income_by_group['Income'],
-            mode='lines+markers',
-            name='Ingreso promedio por edad',
-            line=dict(color='blue'),
-            marker=dict(size=8)
-        ))
-
-        # Agregar línea horizontal para el ingreso promedio general
-        fig.add_trace(go.Scatter(
-            x=income_by_group[y_axis],
-            y=[overall_mean_income] * len(income_by_group),
-            mode='lines',
-            name='Ingreso promedio general',
-            line=dict(color='white', dash='dash')
-        ))
-
-        # Personalizar el diseño del gráfico
-    
-        fig.update_layout(
-            font=dict(size=12),
-            paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)",
-        )
-
-    else:
-        # Crear gráfica de barras para 'Occupation' o 'City_Tier'
-        fig = px.bar(
-            data_frame=income_by_group,
-            x=y_axis,
-            y='Income',
-            text='Income',
-            title=f'Promedio de Ingresos por {y_axis}',
-            color=y_axis,
-            template='plotly_white'
-        )
-
-# Personalizar el diseño del gráfico
-    fig.update_layout(
-            font=dict(size=12),
-            paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)",
+    fig1.update_layout(
+        title='Promedio de Ingresos por Edad',
+        xaxis_title='Edad',
+        yaxis_title='Ingreso Promedio',
+        template='plotly_white',
+        width=800,
+        height=500,
+        font=dict(size=12),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
     )
 
-# Mostrar el gráfico en Streamlit
-    st.plotly_chart(fig)
+# ----------------------- Promedio de Ahorro Potencial por Categoría -----------------------
+    categories = ['Groceries', 'Transport', 'Eating_Out', 'Entertainment', 'Utilities', 'Healthcare', 'Education', 'Miscellaneous']
+    for category in categories:
+        data[f'{category}_savings'] = data['Disposable_Income'] - data[category]
 
+    category_savings = {category: data[f'{category}_savings'].mean() for category in categories}
+    category_savings_datos = pd.DataFrame(list(category_savings.items()), columns=['Categoría', 'Ahorro Potencial Promedio'])
 
-# Opciones de visualización
-    st.sidebar.subheader("Opciones de Visualización")
-    x_axis = st.sidebar.selectbox("Eje X:", df.columns)
-    y_axis = st.sidebar.selectbox("Eje Y:", df.columns)
-    chart_type = st.sidebar.radio("Tipo de gráfico:", ["Scatterplot", "Boxplot", "Histogram"])
+    fig2 = px.bar(
+        category_savings_datos,
+        x='Categoría',
+        y='Ahorro Potencial Promedio',
+        color='Categoría',
+        text='Ahorro Potencial Promedio',
+        color_discrete_sequence=px.colors.qualitative.Dark2,
+        title='Promedio de Ahorro Potencial por Categoría'
+    )
 
-        # Crear gráficos con Plotly
-    if chart_type == "Scatterplot":
-        st.write(f"### Gráfico de dispersión: {x_axis} vs {y_axis}")
-        fig = px.scatter(
-        data_frame=df,
-        x=x_axis,
-        y=y_axis,
-        color=x_axis,
-        template="plotly_white",  # Tema claro (ajustable)
-        title=f"{x_axis} vs {y_axis}",
-        )
-        fig.update_layout(
-            font=dict(size=12),
-            paper_bgcolor="rgba(0,0,0,0)",  # Fondo transparente
-            plot_bgcolor="rgba(0,0,0,0)",  # Fondo del gráfico transparente
-        )
-        st.plotly_chart(fig)
+    fig2.update_traces(
+        texttemplate='%{text:.2f}',
+        textposition='outside'
+    )
+    fig2.update_layout(
+        xaxis_title='Categoría de Gasto',
+        yaxis_title='Ahorro Potencial Promedio',
+        template='plotly_dark',
+        width=800,
+        height=500,
+        font=dict(size=12),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+    )
 
-    elif chart_type == "Boxplot":
-        st.write(f"### Diagrama de caja: {x_axis} vs {y_axis}")
-        fig = px.box(
-            data_frame=df,
-            x=x_axis,
-            y=y_axis,
-            color=x_axis,
-            template="plotly_white",
-            title=f"Diagrama de caja: {x_axis} vs {y_axis}",
-        )
-        fig.update_layout(
-            font=dict(size=12),
-            paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)",
-        )
-        st.plotly_chart(fig)
+# ----------------------- Porcentaje Promedio de Gasto por Categoría -----------------------
+    for category in categories:
+        data[f'{category}_percentage'] = (data[category] / data['Income']) * 100
 
-    elif chart_type == "Histogram":
-        st.write(f"### Histograma de {x_axis}")
-        fig = px.histogram(
-            data_frame=df,
-            x=x_axis,
-            nbins=30,  # Número de barras ajustable
-            color_discrete_sequence=["#636EFA"],  # Paleta de colores consistente
-            template="plotly_white",
-            title=f"Histograma de {x_axis}",
+    mean_percentages = data[[f'{category}_percentage' for category in categories]].mean()
+    df_plot = pd.DataFrame({
+        'Categoría de Gasto': categories,
+        'Porcentaje Promedio': mean_percentages.values
+    })
+
+    fig3 = px.bar(
+        df_plot,
+        x='Categoría de Gasto',
+        y='Porcentaje Promedio',
+        color='Categoría de Gasto',
+        text='Porcentaje Promedio',
+        color_discrete_sequence=px.colors.qualitative.Dark2,
+        title='Porcentaje Promedio de Gasto por Categoría sobre el Ingreso Total'
+    )
+
+    fig3.update_traces(
+        texttemplate='%{text:.2f}%',
+        textposition='outside'
+    )
+    fig3.update_layout(
+        xaxis_title='Categoría de Gasto',
+        yaxis_title='Porcentaje sobre el Ingreso',
+        template='plotly_dark',
+        width=800,
+        height=500,
+        font=dict(size=12),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+    )
+
+# ----------------------- Gastos Fijos y Variables por City_Tier y Occupation --------------------------------
+
+    gastos_por_city_tier_occupation = datos.groupby(['City_Tier', 'Occupation'])[['Gasto_Fijo', 'Gastos_variables']].sum().reset_index()
+    labels = gastos_por_city_tier_occupation['City_Tier'] + " - " + gastos_por_city_tier_occupation['Occupation']
+
+    fig4 = go.Figure()
+
+    fig4.add_trace(go.Bar(
+        x=labels,
+        y=gastos_por_city_tier_occupation['Gasto_Fijo'],
+        name='Gasto Fijo',
+        marker_color='#8B0000'
+    ))
+
+    fig4.add_trace(go.Bar(
+        x=labels,
+        y=gastos_por_city_tier_occupation['Gastos_variables'],
+        name='Gasto Variable',
+        marker_color='#00008B'
+    ))
+
+    fig4.update_layout(
+        barmode='stack',
+        title='Gastos Fijos y Variables por City_Tier y Occupation',
+        xaxis_title='City_Tier - Occupation',
+        yaxis_title='Total Gastos',
+        template='plotly_dark',
+        width=800,
+        height=500,
+        font=dict(size=12),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+    )
+
+# ----------------------- Gastos Fijos y Variables por City_Tier y Occupation --------------------------------
+
+# Crear el gráfico de dispersión
+    fig5 = go.Figure()
+
+    # Agregar puntos para Gastos Fijos
+    fig5.add_trace(go.Scatter(
+        x=datos['Income'],
+        y=datos['Gasto_Fijo'],
+        mode='markers',
+        name='Gasto Fijo',
+        marker=dict(
+            color='#87CEEB',  # Azul claro
+            size=8,
+            line=dict(width=1, color='#4682B4')  # Bordes azul más oscuro
         )
-        fig.update_layout(
-            font=dict(size=12),
-            paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)",
+    ))
+
+    # Agregar puntos para Gastos Variables
+    fig5.add_trace(go.Scatter(
+        x=datos['Income'],
+        y=datos['Gastos_variables'],
+        mode='markers',
+        name='Gasto Variable',
+        marker=dict(
+            color='#FFDAB9',  # Melocotón claro
+            size=8,
+            line=dict(width=1, color='#FF8C00')  # Bordes naranja más oscuro
         )
-        st.plotly_chart(fig)
+    ))
+
+    fig5.update_layout(
+    title='Relación entre Income y Gastos (Fijos vs Variables)',
+    xaxis_title='Income',
+    yaxis_title='Gastos',
+    template='plotly_dark',  # Tema claro
+    width=1000,  # Ancho del gráfico
+    height=600,
+    font=dict(size=12),
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)"
+    )
+
+# ----------------------- Streamlit Layout -----------------------
+
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Ingresos por Edad", "Ahorros por Categoría", "Porcentaje de Gasto", "Gastos por Ciudad",'Relación entre ingresos y gastos'])
+
+    with tab1:
+        st.plotly_chart(fig1, use_container_width=True)
+        st.write("**Conclusión:** El ingreso promedio aumenta consistentemente con la edad, lo que refleja una relación positiva entre experiencia laboral y remuneración.")
+
+    with tab2:
+        st.plotly_chart(fig2, use_container_width=True)
+        st.write("**Conclusión:** Los mayores ahorros potenciales se observan en las categorías de educación y entretenimiento, indicando oportunidades para ajustar gastos en estas áreas.")
+
+    with tab3:
+        st.plotly_chart(fig3, use_container_width=True)
+        st.write("**Conclusión:** Las categorías de alimentos y transporte representan los mayores porcentajes de gasto sobre el ingreso total.")
+
+    with tab4:
+        st.plotly_chart(fig4, use_container_width=True)
+        st.write("**Conclusión:** Los gastos varían significativamente entre ocupaciones y niveles de ciudad, con diferencias notables en gastos fijos y variables.")
+
+    with tab5:
+        st.plotly_chart(fig5, use_container_width=True)
+        st.write("**Conclusión:** ")
+
 
 elif menu == "📈 Dashboard Power BI":
     st.markdown("## Dashboard Interactivo de Power BI")
