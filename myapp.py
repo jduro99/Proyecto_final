@@ -93,11 +93,6 @@ selected_page = st.sidebar.selectbox("Selecciona una página:", pages, index=st.
 # Sincronizar el selector con la página actual
 st.session_state.current_page = pages.index(selected_page)
 
-#menu = st.sidebar.selectbox(
-    #"Navegación",
-    #["🏠 Introducción", "📊 Análisis Visual","📈 Dashboard Power BI", "🤖 Predicción Financiera", "🔍 Conclusiones y Recomendaciones"]
-#)
-
 menu = pages[st.session_state.current_page]
 
 # ---- Pestaña de Introducción Mejorada ----
@@ -128,9 +123,6 @@ if menu == "🏠 Introducción":
 
     ---
     """, unsafe_allow_html=True)
-
-    # Imagen introductoria opcional
-    #st.image("cover.png", caption="Exploración de Finanzas Personales en India", use_column_width=True)
 
     # Puntos Destacados
     st.markdown("""
@@ -199,7 +191,7 @@ elif menu == "📊 Análisis Visual":
         y=income_by_age.values,
         mode='lines+markers',
         name='Ingreso promedio por edad',
-        line=dict(color='blue'),
+        line=dict(color='green'),
         marker=dict(size=8)
     ))
 
@@ -208,7 +200,7 @@ elif menu == "📊 Análisis Visual":
         y=[overall_mean_income] * len(income_by_age),
         mode='lines',
         name='Ingreso promedio general',
-        line=dict(color='red', dash='dash')
+        line=dict(color='orange', dash='dash')
     ))
 
     fig1.update_layout(
@@ -232,7 +224,7 @@ elif menu == "📊 Análisis Visual":
     category_savings_datos = pd.DataFrame(list(category_savings.items()), columns=['Categoría', 'Ahorro Potencial Promedio'])
 
     fig2 = px.bar(
-        category_savings_datos,
+        category_savings_datos.sort_values('Ahorro Potencial Promedio', ascending=False),
         x='Categoría',
         y='Ahorro Potencial Promedio',
         color='Categoría',
@@ -258,28 +250,29 @@ elif menu == "📊 Análisis Visual":
 
 # ----------------------- Porcentaje Promedio de Gasto por Categoría -----------------------
     for category in categories:
-        data[f'{category}_percentage'] = (data[category] / data['Income']) * 100
+        data[f'{category}_percentage'] = ((data[category] / data['Income']) * 100).round(2)
 
-    mean_percentages = data[[f'{category}_percentage' for category in categories]].mean()
+    mean_percentages = data[[f'{category}_percentage' for category in categories]].mean().round(2)
     df_plot = pd.DataFrame({
         'Categoría de Gasto': categories,
         'Porcentaje Promedio': mean_percentages.values
     })
 
+
     fig3 = px.bar(
-        df_plot,
+        df_plot.sort_values('Porcentaje Promedio', ascending=False),
         x='Categoría de Gasto',
         y='Porcentaje Promedio',
         color='Categoría de Gasto',
-        text='Porcentaje Promedio',
         color_discrete_sequence=px.colors.qualitative.Dark2,
-        title='Porcentaje Promedio de Gasto por Categoría sobre el Ingreso Total'
+        title='Porcentaje Promedio de Gasto por Categoría sobre el Ingreso Total',
     )
 
-    fig3.update_traces(
-        texttemplate='%{text:.2f}%',
-        textposition='outside'
-    )
+    #fig3.update_traces(
+        #marker_color=colors,
+        #texttemplate='%{text:.2f}%',
+        #textposition='outside'
+    #)
     fig3.update_layout(
         xaxis_title='Categoría de Gasto',
         yaxis_title='Porcentaje sobre el Ingreso',
@@ -293,7 +286,7 @@ elif menu == "📊 Análisis Visual":
 
 # ----------------------- Gastos Fijos y Variables por City_Tier y Occupation --------------------------------
 
-    gastos_por_city_tier_occupation = datos.groupby(['City_Tier', 'Occupation'])[['Gasto_Fijo', 'Gastos_variables']].sum().reset_index()
+    gastos_por_city_tier_occupation = datos.groupby(['City_Tier', 'Occupation'])[['Gasto_Fijo', 'Gastos_variables']].sum().reset_index().sort_values('Gasto_Fijo', ascending=False) 
     labels = gastos_por_city_tier_occupation['City_Tier'] + " - " + gastos_por_city_tier_occupation['Occupation']
 
     fig4 = go.Figure()
@@ -302,14 +295,15 @@ elif menu == "📊 Análisis Visual":
         x=labels,
         y=gastos_por_city_tier_occupation['Gasto_Fijo'],
         name='Gasto Fijo',
-        marker_color='#8B0000'
+        marker_color='#6BA368'
     ))
 
+    #fig4.add_trace(go.Bar(
     fig4.add_trace(go.Bar(
         x=labels,
         y=gastos_por_city_tier_occupation['Gastos_variables'],
         name='Gasto Variable',
-        marker_color='#00008B'
+        marker_color='#A3D9A5'  # Verde aún más claro
     ))
 
     fig4.update_layout(
