@@ -4,7 +4,25 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import plotly.express as px
 import pickle
+import joblib
+import json
+import logging
+import os
+import pickle
+import numpy as np
+import pandas as pd
+import joblib
 import plotly.graph_objects as go
+from prediccion import predecir_finanzas
+
+import azureml.automl.core
+from azureml.automl.core.shared import logging_utilities, log_server
+from azureml.telemetry import INSTRUMENTATION_KEY
+
+from inference_schema.schema_decorators import input_schema, output_schema
+from inference_schema.parameter_types.numpy_parameter_type import NumpyParameterType
+from inference_schema.parameter_types.pandas_parameter_type import PandasParameterType
+from inference_schema.parameter_types.standard_py_parameter_type import StandardPythonParameterType
 import warnings
 
 warnings.filterwarnings('ignore')
@@ -97,6 +115,7 @@ menu = pages[st.session_state.current_page]
 
 # ---- Pestaña de Introducción Mejorada ----
 if menu == "🏠 Introducción":
+    st.image("data/india2.png",width=1000)
     st.markdown("""
     <h1 style="text-align: center; color: #4CAF50;">Análisis de Finanzas Personales en India</h1>
     <p style="text-align: justify; font-size: 18px;">
@@ -104,24 +123,6 @@ if menu == "🏠 Introducción":
     los gastos y los patrones de ahorro de las personas, destacando insights clave que pueden ser utilizados para tomar decisiones financieras más 
     informadas. Además, presentamos un modelo predictivo para estimar el ingreso disponible basado en variables específicas.
     </p>
-    """, unsafe_allow_html=True)
-
-    # Nueva sección: Sobre India
-    st.markdown("""
-    ---
-    ### Sobre India: Contexto Económico y Cultural
-    India es el segundo país más poblado del mundo, con más de **1,400 millones de habitantes**. 
-    Su economía es una de las de más rápido crecimiento a nivel global, impulsada por sectores clave como la tecnología, 
-    la agricultura y los servicios. Sin embargo, la diversidad cultural y socioeconómica crea un escenario único 
-    donde las finanzas personales varían ampliamente según factores como la región, ocupación y nivel educativo.
-    
-    #### Datos Clave:
-    - **PIB (2023):** Más de $3.7 billones USD, ocupando el quinto lugar en el mundo.
-    - **Distribución de ingresos:** Desigualdades significativas entre las zonas rurales y urbanas.
-    - **Cultura del ahorro:** Tradicionalmente, las familias indias priorizan el ahorro, con una tasa media de ahorro del **30%** del ingreso anual.
-    - **Ciudades principales:** Mumbai, Delhi, Bangalore, y Chennai son centros económicos clave.
-
-    ---
     """, unsafe_allow_html=True)
 
     # Puntos Destacados
@@ -154,20 +155,26 @@ if menu == "🏠 Introducción":
         """)
         st.progress(90)
 
+    st.markdown("""
+                ---
+                """)
+
+    # 🔹 Contexto en Sección Colapsable (Para no saturar la introducción)
+    with st.expander("📌 Información sobre India y su economía"):
+        st.markdown("""
+        ---
+        India es el segundo país más poblado del mundo, con más de **1,400 millones de habitantes**. Su economía es una de las economías con más rápido crecimiento, 
+        aunque presenta desigualdades significativas entre zonas rurales y urbanas.  
+        
+        **📊 Datos Clave:**  
+        - **PIB (2023):** $3.7 billones USD (5° lugar mundial).  
+        - **Ahorro promedio:** 30% del ingreso anual.  
+        - **Ciudades principales:** Mumbai, Delhi, Bangalore, Chennai.  
+        """)
+
     # Información adicional y contexto
     st.markdown("""
-    ---
-    ### Contexto del Proyecto
-    India, con una población de más de 1,400 millones de personas, es uno de los mercados más diversos y dinámicos en términos financieros. 
-    Este análisis tiene como objetivo comprender los patrones de gasto y ahorro de diferentes segmentos de la población, 
-    utilizando datos reales y herramientas avanzadas de análisis.
-
-    ### Objetivos Clave:
-    - Identificar las principales áreas de gasto y ahorro.
-    - Explorar cómo las características demográficas afectan las finanzas personales.
-    - Utilizar Machine Learning para predecir el ingreso disponible y ofrecer recomendaciones prácticas.
-
-    ---
+        ---
     ### Estructura de la Aplicación:
     - **📊 Análisis Visual:** Representación interactiva de los datos financieros clave.
     - **📈 Dashboard Power BI:** Visualizaciones avanzadas creadas en Power BI.
@@ -268,11 +275,6 @@ elif menu == "📊 Análisis Visual":
         title='Porcentaje Promedio de Gasto por Categoría sobre el Ingreso Total',
     )
 
-    #fig3.update_traces(
-        #marker_color=colors,
-        #texttemplate='%{text:.2f}%',
-        #textposition='outside'
-    #)
     fig3.update_layout(
         xaxis_title='Categoría de Gasto',
         yaxis_title='Porcentaje sobre el Ingreso',
@@ -368,19 +370,35 @@ elif menu == "📊 Análisis Visual":
 
     with tab1:
         st.plotly_chart(fig1, use_container_width=True)
-        st.write("**Conclusión:** El ingreso promedio aumenta consistentemente con la edad, lo que refleja una relación positiva entre experiencia laboral y remuneración.")
+        st.markdown("""
+                ### **Conclusiones:**
+                - El ingreso promedio no sigue una tendencia clara y muestra fluctuaciones a lo largo de las edades.
+                - Sin embargo, existe un umbral general de ingresos alrededor de los **41,000** (línea naranja).
+                - Esto sugiere que factores externos, como la industria laboral o nivel educativo, pueden jugar un papel más relevante que la edad en sí.""",unsafe_allow_html=True)
 
     with tab2:
         st.plotly_chart(fig2, use_container_width=True)
-        st.write("**Conclusión:** Los mayores ahorros potenciales se observan en las categorías de educación y entretenimiento, indicando oportunidades para ajustar gastos en estas áreas.")
+        st.markdown("""
+                ### **Conclusiones:** 
+                - Las categorías con mayor ahorro potencial son **Misceláneos (9,816)**, **Entretenimiento (9,198)** y **Eating Out (9,185)**.
+                - Esto indica que los gastos no esenciales representan una gran oportunidad para aumentar el ahorro.""")
 
     with tab3:
         st.plotly_chart(fig3, use_container_width=True)
-        st.write("**Conclusión:** Las categorías de alimentos y transporte representan los mayores porcentajes de gasto sobre el ingreso total.")
+        st.markdown("""
+                ### **Conclusiones:** 
+                - La mayor parte del gasto se destina a **alimentos (12%)**, seguido de transporte y servicios públicos.
+                - Esto sugiere que los costos fijos consumen gran parte del ingreso, limitando la capacidad de ahorro.""")
 
     with tab4:
         st.plotly_chart(fig4, use_container_width=True)
-        st.write("**Conclusión:** Los gastos varían significativamente entre ocupaciones y niveles de ciudad, con diferencias notables en gastos fijos y variables.")
+        st.markdown("""
+                ### **Conclusiones:** 
+                - Mayor gasto en City_Tier 2: Los trabajadores independientes y estudiantes en estas ciudades tienen los gastos más altos.
+                - Diferencias en ocupaciones: Los trabajadores independientes tienden a gastar más, mientras que los jubilados y estudiantes gastan menos.
+                - Gastos fijos dominan: En la mayoría de los casos, los gastos fijos representan la mayor parte del gasto total.
+                - Menor gasto en City_Tier 3: Sugiere un costo de vida más bajo o menores ingresos disponibles.""",unsafe_allow_html=True)
+
 
     with tab5:
         st.plotly_chart(fig5, use_container_width=True)
@@ -404,67 +422,151 @@ elif menu == "📈 Dashboard Power BI":
     )
 
 # ---- Predicción Financiera ----
-elif menu == "🤖 Predicción Financiera":
+#elif menu == "🤖 Predicción Financiera":
+    #st.markdown("## Predicción del Ingreso Disponible")
+    #st.write("Introduce las características para predecir el ingreso disponible.")
+
+    import json
+import logging
+import os
+import pickle
+import numpy as np
+import pandas as pd
+import joblib
+
+import azureml.automl.core
+from azureml.automl.core.shared import logging_utilities, log_server
+from azureml.telemetry import INSTRUMENTATION_KEY
+
+from inference_schema.schema_decorators import input_schema, output_schema
+from inference_schema.parameter_types.numpy_parameter_type import NumpyParameterType
+from inference_schema.parameter_types.pandas_parameter_type import PandasParameterType
+from inference_schema.parameter_types.standard_py_parameter_type import StandardPythonParameterType
+
+data_sample = PandasParameterType(pd.DataFrame({"Income": pd.Series([44637.25], dtype="float64"), "Age": pd.Series([49], dtype="int8"), "Dependents": pd.Series([0], dtype="int8"), "Occupation": pd.Series(["Self_Employed"], dtype="object"), "City_Tier": pd.Series(["Tier_1"], dtype="object"), "Rent": pd.Series([13391.17], dtype="float64"), "Loan_Repayment": pd.Series([0], dtype="float64"), "Disposable_Income": pd.Series([11265.63], dtype="float64"), "Gasto_Fijo": pd.Series([24893.4], dtype="float64"), "Gastos_variables": pd.Series([8478.21], dtype="float64")}))
+input_sample = StandardPythonParameterType({'data': data_sample})
+
+result_sample = NumpyParameterType(np.array([0.0]))
+output_sample = StandardPythonParameterType({'Results':result_sample})
+sample_global_parameters = StandardPythonParameterType(1.0)
+
+try:
+    log_server.enable_telemetry(INSTRUMENTATION_KEY)
+    log_server.set_verbosity('INFO')
+    logger = logging.getLogger('azureml.automl.core.scoring_script_v2')
+except:
+    pass
+
+
+def init():
+    global model
+    # This name is model.id of model that we want to deploy deserialize the model file back
+    # into a sklearn model
+    model_path = "modelo\model.pkl"
+    path = os.path.normpath(model_path)
+    try:
+        logger.info("Loading model from path.")
+        model = joblib.load(model_path)
+        logger.info("Loading successful.")
+    except Exception as e:
+        logging_utilities.log_traceback(e, logger)
+        raise
+
+@input_schema('Inputs', input_sample)
+@input_schema('GlobalParameters', sample_global_parameters, convert_to_provided_type=False)
+@output_schema(output_sample)
+def run(Inputs, GlobalParameters=1.0):
+    data = Inputs['data']
+    result = model.predict(data)
+    return {'Results':result.tolist()}
+
+def predecir_finanzas(datos):
+    """ Realiza una predicción con el modelo cargado """
+    income = datos["Income"]
+    age = datos["Age"]
+    dependents = datos["Dependents"]
+    occupation = datos["Occupation"]
+    city_tier = datos["City_Tier"]
+    rent = datos["Rent"]
+    loan_repayment = datos["Loan_Repayment"]
+    disposable_income = datos["Disposable_Income"]
+    gasto_fijo = datos["Gasto_Fijo"]
+    gastos_variables = datos["Gastos_variables"]
+
+    # Realizar la predicción
+    data = [[income, age, dependents, occupation, city_tier, rent, loan_repayment, disposable_income, gasto_fijo, gastos_variables]]
+    prediccion = model.predict(data)
+
+    return {"Results": [prediccion[0]]}  # Devuelve la predicción en formato dict
+
+# Función de predicción que se invoca en el Streamlit app
+if menu == "🤖 Predicción Financiera":
     st.markdown("## Predicción del Ingreso Disponible")
     st.write("Introduce las características para predecir el ingreso disponible.")
 
     # Inputs del usuario
-    age = st.number_input("Edad:", min_value=18, max_value=64, value=30)
-    occupation = st.selectbox("Ocupación:", df['Occupation'].unique())
-    city_tier = st.selectbox("City Tier:", df['City_Tier'].unique())
-    income = st.number_input("Ingreso Mensual (₹):", min_value=0, max_value=500000, value=50000)
-    gasto_fijo = st.number_input("Gastos Fijos (₹):", min_value=0, max_value=500000, value=50000)
-    gasto_variable = st.number_input("Gastos variables (₹):", min_value=0, max_value=500000, value=50000)
+    Income = st.number_input("Ingreso Mensual (₹):", min_value=0, max_value=500000, value=50000)
+    Age = st.number_input("Edad:", min_value=18, max_value=64, value=30)
+    Dependents = st.selectbox("Dependientes:", df['Dependents'].unique())
+    Occupation = st.selectbox("Ocupación:", df['Occupation'].unique())
+    City_Tier = st.selectbox("City Tier:", df['City_Tier'].unique())
+    Rent = st.number_input("Renta", min_value=0, max_value=1000000)
+    Loan_Repayment = st.number_input("Préstamos", min_value=0, max_value=1000000)
+    Disposable_Income = st.number_input("Ingreso Disponible", min_value=0, max_value=1000000)
+    Gasto_Fijo = st.number_input("Gastos Fijos (₹):", min_value=0, max_value=500000, value=50000)
+    Gastos_variables = st.number_input("Gastos variables (₹):", min_value=0, max_value=500000, value=50000)
 
-    # Crear DataFrame con datos del usuario
-    user_data = pd.DataFrame({
-        "Age": [age],
-        "Occupation": [occupation],
-        "City_Tier": [city_tier],
-        "Income": [income],
-        "Gasto_fijo": [gasto_fijo],
-        "Gasto_variable": [gasto_variable],
-    })
+    # Crear el diccionario con los datos ingresados por el usuario
+    datos_usuario = {
+        "Income": Income,
+        "Age": Age,
+        "Dependents": Dependents,
+        "Occupation": Occupation,
+        "City_Tier": City_Tier,
+        "Rent": Rent,
+        "Loan_Repayment": Loan_Repayment,
+        "Disposable_Income": Disposable_Income,
+        "Gasto_Fijo": Gasto_Fijo,
+        "Gastos_variables": Gastos_variables
+    }
 
+    # Mostrar los datos del usuario
     st.write("Datos del Usuario:")
-    st.dataframe(user_data)
-
-    # Cargar modelo de predicción
-    @st.cache
-    def load_model():
-        with open('models/disposable_income_model.pkl', 'rb') as file:
-            return pickle.load(file)
-
-    model = load_model()
+    st.write(pd.DataFrame([datos_usuario]))
 
     # Predicción
     if st.button("Predecir"):
-        prediction = model.predict(user_data)
-        st.success(f"El ingreso disponible estimado es: ₹{prediction[0]:,.2f}")
-
+        prediccion = predecir_finanzas(datos_usuario)
+        st.success(f"El ingreso disponible estimado es: ₹{round(prediccion['Results'][0], 2)}")
 # ---- Conclusiones y Recomendaciones ----
 elif menu == "🔍 Conclusiones y Recomendaciones":
-    st.markdown("## Conclusiones y Recomendaciones")
-    st.write("""
-    ### Conclusiones:
-    1. Los ingresos varían significativamente según la ocupación y el City Tier.
-    2. Los gastos en transporte y entretenimiento representan las principales áreas de mejora.
-    3. Una planificación financiera adecuada puede aumentar los ahorros en un 20%.
+    st.title("📊 Conclusiones y Recomendaciones")
 
-    ### Recomendaciones:
-    - Fomentar la educación financiera para maximizar el ingreso disponible.
-    - Implementar herramientas de ahorro automatizado para la población urbana.
-    - Promover alternativas de transporte más económicas y sostenibles.
+    # Sección de Conclusiones Generales
+    st.header("🔎 Conclusiones")
+
+    st.markdown("""
+    El análisis de los métodos de ahorro en la India muestra que la capacidad de ahorro está influenciada por múltiples factores, incluyendo los ingresos, los patrones de gasto y las categorías en las que se distribuyen los recursos. 
+
+    Se observa que una parte importante de los ingresos se destina a gastos fijos, lo que puede limitar la capacidad de ahorro si no se gestiona adecuadamente el presupuesto. Además, los gastos discrecionales, como el entretenimiento y comer fuera de casa, representan una oportunidad significativa para optimizar el ahorro.
+
+    A través de una mejor planificación financiera y la adopción de hábitos más eficientes de consumo, es posible incrementar el porcentaje de ingresos destinados al ahorro sin afectar considerablemente la calidad de vida.
     """)
 
-    # Descarga de resultados
-    st.markdown("### Descarga de Datos:")
-    @st.cache
-    def convert_df(df):
-        return df.to_csv(index=False).encode('utf-8')
+    # Sección de Recomendaciones
+    st.header("💡 Recomendaciones")
 
-    csv = convert_df(df)
-    st.download_button("Descargar Datos", data=csv, file_name="finanzas_india.csv", mime="text/csv")
+    st.markdown("""
+    ### **📌 Estrategias para Mejorar el Ahorro**
+    ✅ **Establecer un presupuesto mensual**, asignando un porcentaje fijo al ahorro antes de destinarlo a otros gastos.  
+    ✅ **Reducir gastos en categorías no esenciales**, priorizando necesidades sobre deseos.  
+    ✅ **Automatizar el ahorro**, utilizando herramientas bancarias que transfieran automáticamente una parte del ingreso a cuentas de inversión o ahorro.  
+    ✅ **Optimizar los gastos fijos**, buscando opciones más económicas en transporte, servicios públicos y alimentación.  
+    ✅ **Fomentar la educación financiera**, para mejorar la toma de decisiones económicas a largo plazo.  
+
+    ---
+    📢 **Conclusión Final:** Pequeños ajustes en la administración de ingresos y gastos pueden marcar una gran diferencia en la capacidad de ahorro, permitiendo una mayor estabilidad financiera y un mejor futuro económico.
+    """)
 
 # ---- Botones de Navegación ----
 st.markdown("---")
