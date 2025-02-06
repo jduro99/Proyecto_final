@@ -13,23 +13,17 @@ import numpy as np
 import pandas as pd
 import joblib
 import plotly.graph_objects as go
-from prediccion import predecir_finanzas
-
-import azureml.automl.core
-from azureml.automl.core.shared import logging_utilities, log_server
-from azureml.telemetry import INSTRUMENTATION_KEY
-
-from inference_schema.schema_decorators import input_schema, output_schema
-from inference_schema.parameter_types.numpy_parameter_type import NumpyParameterType
-from inference_schema.parameter_types.pandas_parameter_type import PandasParameterType
-from inference_schema.parameter_types.standard_py_parameter_type import StandardPythonParameterType
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.pipeline import Pipeline
+from sklearn.compose import ColumnTransformer
 import warnings
 
 warnings.filterwarnings('ignore')
 
 #CONFIGURACION DE LA PAGINA
 st.set_page_config(
-    #page_title="Análisis de Finanzas Personales en India",
     page_icon="🇮🇳",
     layout="wide", 
     initial_sidebar_state="expanded",
@@ -111,11 +105,19 @@ selected_page = st.sidebar.selectbox("Selecciona una página:", pages, index=st.
 # Sincronizar el selector con la página actual
 st.session_state.current_page = pages.index(selected_page)
 
+# Agregar una sección en la barra lateral
+st.sidebar.markdown("## 👥 Presentado por:")
+
+# Mostrar los nombres con iconos
+st.sidebar.success("🔹 **Jorge Duro Sánchez**")  
+st.sidebar.success("🔹 **José Luis Vázquez Vicario**")  
+st.sidebar.success("🔹 **Bencomo Herrnández Morales**")  
+
 menu = pages[st.session_state.current_page]
 
 # ---- Pestaña de Introducción Mejorada ----
 if menu == "🏠 Introducción":
-    st.image("data/india2.png",width=1000)
+    st.image('data/india2.png')
     st.markdown("""
     <h1 style="text-align: center; color: #4CAF50;">Análisis de Finanzas Personales en India</h1>
     <p style="text-align: justify; font-size: 18px;">
@@ -124,6 +126,27 @@ if menu == "🏠 Introducción":
     informadas. Además, presentamos un modelo predictivo para estimar el ingreso disponible basado en variables específicas.
     </p>
     """, unsafe_allow_html=True)
+
+    st.markdown("""
+                ---
+                """)
+
+    # 🔹 Contexto en Sección Colapsable (Para no saturar la introducción)
+    with st.expander("📌 Información sobre India y su economía"):
+        st.markdown("""
+        ---
+        India es el segundo país más poblado del mundo, con más de **1,400 millones de habitantes**. Su economía es una de las economías con más rápido crecimiento, 
+        aunque presenta desigualdades significativas entre zonas rurales y urbanas.  
+        
+        **📊 Datos Clave:**  
+        - **PIB (2023):** $3.7 billones USD (5° lugar mundial).  
+        - **Ahorro promedio:** 30% del ingreso anual.  
+        - **Ciudades principales:** Mumbai, Delhi, Bangalore, Chennai.  
+        """)
+
+    st.markdown("""
+            ---
+            """)
 
     # Puntos Destacados
     st.markdown("""
@@ -154,23 +177,6 @@ if menu == "🏠 Introducción":
         - Insights clave generados a partir de Machine Learning.
         """)
         st.progress(90)
-
-    st.markdown("""
-                ---
-                """)
-
-    # 🔹 Contexto en Sección Colapsable (Para no saturar la introducción)
-    with st.expander("📌 Información sobre India y su economía"):
-        st.markdown("""
-        ---
-        India es el segundo país más poblado del mundo, con más de **1,400 millones de habitantes**. Su economía es una de las economías con más rápido crecimiento, 
-        aunque presenta desigualdades significativas entre zonas rurales y urbanas.  
-        
-        **📊 Datos Clave:**  
-        - **PIB (2023):** $3.7 billones USD (5° lugar mundial).  
-        - **Ahorro promedio:** 30% del ingreso anual.  
-        - **Ciudades principales:** Mumbai, Delhi, Bangalore, Chennai.  
-        """)
 
     # Información adicional y contexto
     st.markdown("""
@@ -225,7 +231,7 @@ elif menu == "📊 Análisis Visual":
 # ----------------------- Promedio de Ahorro Potencial por Categoría -----------------------
     categories = ['Groceries', 'Transport', 'Eating_Out', 'Entertainment', 'Utilities', 'Healthcare', 'Education', 'Miscellaneous']
     for category in categories:
-        data[f'{category}_savings'] = data['Disposable_Income'] - data[category]
+        data[f'{category}_savings'] = (data['Disposable_Income'] - data[category]).round(2)
 
     category_savings = {category: data[f'{category}_savings'].mean() for category in categories}
     category_savings_datos = pd.DataFrame(list(category_savings.items()), columns=['Categoría', 'Ahorro Potencial Promedio'])
@@ -235,15 +241,10 @@ elif menu == "📊 Análisis Visual":
         x='Categoría',
         y='Ahorro Potencial Promedio',
         color='Categoría',
-        text='Ahorro Potencial Promedio',
         color_discrete_sequence=px.colors.qualitative.Dark2,
         title='Promedio de Ahorro Potencial por Categoría'
     )
 
-    fig2.update_traces(
-        texttemplate='%{text:.2f}',
-        textposition='outside'
-    )
     fig2.update_layout(
         xaxis_title='Categoría de Gasto',
         yaxis_title='Ahorro Potencial Promedio',
@@ -297,7 +298,7 @@ elif menu == "📊 Análisis Visual":
         x=labels,
         y=gastos_por_city_tier_occupation['Gasto_Fijo'],
         name='Gasto Fijo',
-        marker_color='#6BA368'
+        marker_color='#1F77B4'  # Azul oscuro
     ))
 
     #fig4.add_trace(go.Bar(
@@ -305,7 +306,7 @@ elif menu == "📊 Análisis Visual":
         x=labels,
         y=gastos_por_city_tier_occupation['Gastos_variables'],
         name='Gasto Variable',
-        marker_color='#A3D9A5'  # Verde aún más claro
+        marker_color='#FF7F0E'  # Naranja vibrante
     ))
 
     fig4.update_layout(
@@ -391,6 +392,13 @@ elif menu == "📊 Análisis Visual":
                 - Esto sugiere que los costos fijos consumen gran parte del ingreso, limitando la capacidad de ahorro.""")
 
     with tab4:
+        st.markdown("""
+    | **Categoría** | **Nivel (Tier)** | **Ejemplos de Ciudades** |
+    |--------------|----------------|----------------------|
+    | 🏙️ **X**   | Tier 1        | Bangalore, Chennai, Delhi, Hyderabad, Kolkata, Mumbai, Ahmedabad, Pune |
+    | 🌆 **Y**   | Tier 2        | Bhubaneswar, Surat, Jaipur, Lucknow |
+    | 🏡 **Z**   | Tier 3        | Durgapur, Madurai, Bhopal, Coimbatore |
+    """)
         st.plotly_chart(fig4, use_container_width=True)
         st.markdown("""
                 ### **Conclusiones:** 
@@ -402,8 +410,11 @@ elif menu == "📊 Análisis Visual":
 
     with tab5:
         st.plotly_chart(fig5, use_container_width=True)
-        st.write("**Conclusión:** ")
-
+        st.markdown("""
+                ### **Conclusiones:** 
+                - A medida que aumentan los ingresos, los gastos también crecen, pero con mayor variabilidad en los niveles más altos.
+                - Las personas con ingresos bajos tienen un margen de ahorro más reducido, ya que sus gastos fijos representan la mayor parte de sus ingresos.
+                """)
 
 elif menu == "📈 Dashboard Power BI":
     st.markdown("## Dashboard Interactivo de Power BI")
@@ -416,93 +427,18 @@ elif menu == "📈 Dashboard Power BI":
         # Inserción del informe de Power BI
     st.components.v1.iframe(
         src="https://app.powerbi.com/view?r=eyJrIjoiNDY4ZTI4OTYtMjc1YS00YjlhLWEwZDItYjk3MWFmZjY5MzhkIiwidCI6IjhhZWJkZGI2LTM0MTgtNDNhMS1hMjU1LWI5NjQxODZlY2M2NCIsImMiOjl9",
+        #src="https://app.powerbi.com/view?r=eyJrIjoiNDY4ZTI4OTYtMjc1YS00YjlhLWEwZDItYjk3MWFmZjY5MzhkIiwidCI6IjhhZWJkZGI2LTM0MTgtNDNhMS1hMjU1LWI5NjQxODZlY2M2NCIsImMiOjl9",
         width=800,  # Ajusta el ancho según tus necesidades
         height=450,  # Ajusta la altura según tus necesidades
         scrolling=True
     )
 
-# ---- Predicción Financiera ----
-#elif menu == "🤖 Predicción Financiera":
-    #st.markdown("## Predicción del Ingreso Disponible")
-    #st.write("Introduce las características para predecir el ingreso disponible.")
+#---- Predicción Financiera ----
 
-    import json
-import logging
-import os
-import pickle
-import numpy as np
-import pandas as pd
-import joblib
-
-import azureml.automl.core
-from azureml.automl.core.shared import logging_utilities, log_server
-from azureml.telemetry import INSTRUMENTATION_KEY
-
-from inference_schema.schema_decorators import input_schema, output_schema
-from inference_schema.parameter_types.numpy_parameter_type import NumpyParameterType
-from inference_schema.parameter_types.pandas_parameter_type import PandasParameterType
-from inference_schema.parameter_types.standard_py_parameter_type import StandardPythonParameterType
-
-data_sample = PandasParameterType(pd.DataFrame({"Income": pd.Series([44637.25], dtype="float64"), "Age": pd.Series([49], dtype="int8"), "Dependents": pd.Series([0], dtype="int8"), "Occupation": pd.Series(["Self_Employed"], dtype="object"), "City_Tier": pd.Series(["Tier_1"], dtype="object"), "Rent": pd.Series([13391.17], dtype="float64"), "Loan_Repayment": pd.Series([0], dtype="float64"), "Disposable_Income": pd.Series([11265.63], dtype="float64"), "Gasto_Fijo": pd.Series([24893.4], dtype="float64"), "Gastos_variables": pd.Series([8478.21], dtype="float64")}))
-input_sample = StandardPythonParameterType({'data': data_sample})
-
-result_sample = NumpyParameterType(np.array([0.0]))
-output_sample = StandardPythonParameterType({'Results':result_sample})
-sample_global_parameters = StandardPythonParameterType(1.0)
-
-try:
-    log_server.enable_telemetry(INSTRUMENTATION_KEY)
-    log_server.set_verbosity('INFO')
-    logger = logging.getLogger('azureml.automl.core.scoring_script_v2')
-except:
-    pass
-
-
-def init():
-    global model
-    # This name is model.id of model that we want to deploy deserialize the model file back
-    # into a sklearn model
-    model_path = "modelo\model.pkl"
-    path = os.path.normpath(model_path)
-    try:
-        logger.info("Loading model from path.")
-        model = joblib.load(model_path)
-        logger.info("Loading successful.")
-    except Exception as e:
-        logging_utilities.log_traceback(e, logger)
-        raise
-
-@input_schema('Inputs', input_sample)
-@input_schema('GlobalParameters', sample_global_parameters, convert_to_provided_type=False)
-@output_schema(output_sample)
-def run(Inputs, GlobalParameters=1.0):
-    data = Inputs['data']
-    result = model.predict(data)
-    return {'Results':result.tolist()}
-
-def predecir_finanzas(datos):
-    """ Realiza una predicción con el modelo cargado """
-    income = datos["Income"]
-    age = datos["Age"]
-    dependents = datos["Dependents"]
-    occupation = datos["Occupation"]
-    city_tier = datos["City_Tier"]
-    rent = datos["Rent"]
-    loan_repayment = datos["Loan_Repayment"]
-    disposable_income = datos["Disposable_Income"]
-    gasto_fijo = datos["Gasto_Fijo"]
-    gastos_variables = datos["Gastos_variables"]
-
-    # Realizar la predicción
-    data = [[income, age, dependents, occupation, city_tier, rent, loan_repayment, disposable_income, gasto_fijo, gastos_variables]]
-    prediccion = model.predict(data)
-
-    return {"Results": [prediccion[0]]}  # Devuelve la predicción en formato dict
-
-# Función de predicción que se invoca en el Streamlit app
-if menu == "🤖 Predicción Financiera":
+elif menu == "🤖 Predicción Financiera":
     st.markdown("## Predicción del Ingreso Disponible")
     st.write("Introduce las características para predecir el ingreso disponible.")
+
 
     # Inputs del usuario
     Income = st.number_input("Ingreso Mensual (₹):", min_value=0, max_value=500000, value=50000)
@@ -530,14 +466,65 @@ if menu == "🤖 Predicción Financiera":
         "Gastos_variables": Gastos_variables
     }
 
+    # Ejemplo de predicción
+    input_data = {
+        'Income': [Income], 'Age':[Age], 'Dependents': [Dependents], 'Occupation': [Occupation], 'City_Tier': [City_Tier], 
+        'Rent': [Rent], 'Loan_Repayment': [Loan_Repayment], 'Disposable_Income': [Disposable_Income], 'Gasto_Fijo': [Gasto_Fijo], 'Gastos_variables': [Gastos_variables]
+    }
+
     # Mostrar los datos del usuario
     st.write("Datos del Usuario:")
     st.write(pd.DataFrame([datos_usuario]))
 
+    def remove_outliers(df, numeric_features):
+        """Elimina outliers usando el método IQR."""
+        Q1 = datos[numeric_features].quantile(0.25)
+        Q3 = datos[numeric_features].quantile(0.75)
+        IQR = Q3 - Q1
+        lower_bound = Q1 - 1.5 * IQR
+        upper_bound = Q3 + 1.5 * IQR
+        return df[~((datos[numeric_features] < lower_bound) | (datos[numeric_features] > upper_bound)).any(axis=1)]
+
+    target = "Desired_Savings"
+    numeric_features = ["Income", "Age", "Dependents", "Rent", "Loan_Repayment", "Disposable_Income", "Gasto_Fijo", "Gastos_variables"]
+    categorical_features = ["Occupation", "City_Tier"]
+
+    # Eliminar outliers
+    df_clean = remove_outliers(datos, numeric_features)
+
+    # Separar X e y
+    X = df_clean.drop(columns=[target])
+    y = df_clean[target]
+
+    # Preprocesamiento
+    preprocessor = ColumnTransformer(
+        transformers=[
+            ('num', StandardScaler(), numeric_features),
+            ('cat', OneHotEncoder(handle_unknown='ignore'), categorical_features)
+        ]
+    )
+
+    # Modelo
+    model = Pipeline([
+        ('preprocessor', preprocessor),
+        ('regressor', RandomForestRegressor(n_estimators=100, random_state=42))
+    ])
+
+    # División de datos y entrenamiento
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    #model.fit(X_train, y_train)
+
+    model.fit(X_train, y_train)
+
+    def predict_savings(input_data):
+        #model = joblib.load("modelo_savings.pkl")  # Cargar modelo entrenado
+        input_df = pd.DataFrame(input_data)
+        return model.predict(input_df)[0]
+
     # Predicción
     if st.button("Predecir"):
-        prediccion = predecir_finanzas(datos_usuario)
-        st.success(f"El ingreso disponible estimado es: ₹{round(prediccion['Results'][0], 2)}")
+        prediccion = predict_savings(input_data)
+        st.success(f"Los ahorros estimados son: {prediccion:.2f} ₹")
 # ---- Conclusiones y Recomendaciones ----
 elif menu == "🔍 Conclusiones y Recomendaciones":
     st.title("📊 Conclusiones y Recomendaciones")
