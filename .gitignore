@@ -129,6 +129,7 @@ env.bak/
 venv.bak/
 ENV_Airbnb_homing_data_analysis_in_Zurich/
 ENV_Finanzas_personales_India/
+ENV_Proyecto_final/
 
 # Spyder project settings
 .spyderproject
