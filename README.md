@@ -29,6 +29,7 @@ Este proyecto tiene como objetivo analizar el mercado financiero y los hábitos 
 El análisis realizado en este proyecto revela patrones significativos en los hábitos de ahorro de los individuos en la India. Se identifican diferencias clave en los niveles de ahorro según variables como edad, ocupación y nivel de ingresos. 
 
 Algunas recomendaciones clave incluyen:
+
 ✅ Establecer un presupuesto mensual, asignando un porcentaje fijo al ahorro antes de destinarlo a otros gastos.  
 ✅ Reducir gastos en categorías no esenciales, priorizando necesidades sobre deseos.  
 ✅ Automatizar el ahorro, utilizando herramientas bancarias que transfieran automáticamente una parte del ingreso a cuentas de ahorro.  
